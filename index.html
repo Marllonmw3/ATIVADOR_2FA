@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>MJ VENDAS • Gerador 2FA</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
+<style>
+/* Tema escuro */
+body{
+  background:#0b1620;
+  font-family:Inter;
+  color:#e8f0f6;
+  margin:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  height:100vh;
+}
+
+.container{
+  background:#0f1f2c;
+  padding:35px;
+  border-radius:14px;
+  width:380px;
+  text-align:center;
+  box-shadow:0 10px 40px rgba(0,0,0,0.6);
+}
+
+.logo-img{
+  width:70px;
+  border-radius:12px;
+  margin-bottom:10px;
+}
+
+h2{
+  margin:5px 0;
+}
+
+.subtitle{
+  font-size:13px;
+  opacity:0.7;
+}
+
+input{
+  width:100%;
+  padding:12px;
+  border:none;
+  border-radius:8px;
+  background:#08141c;
+  color:white;
+  margin-top:15px;
+  font-size:14px;
+}
+
+.code{
+  font-size:42px;
+  letter-spacing:4px;
+  margin-top:20px;
+  font-weight:600;
+  cursor:pointer;
+  transition:0.2s;
+}
+.code:hover{
+  opacity:0.8;
+}
+
+.msg{
+  font-size:13px;
+  color:#19ff9a;
+  margin-top:10px;
+}
+
+.extra{
+  font-size:12px;
+  margin-top:5px;
+  opacity:0.8;
+}
+
+.toggle{
+  margin-top:18px;
+  font-size:13px;
+  cursor:pointer;
+  color:#1cffaa;
+}
+
+.footer{
+  font-size:11px;
+  opacity:0.5;
+  margin-top:20px;
+}
+
+.avaliacao{
+  margin-top:20px;
+  border-top:1px solid rgba(255,255,255,0.08);
+  padding-top:15px;
+}
+
+button{
+  background:#19ff9a;
+  border:none;
+  padding:8px 14px;
+  border-radius:6px;
+  cursor:pointer;
+  font-weight:600;
+  margin:4px;
+}
+
+button:hover{
+  background:#00e488;
+}
+
+.painel{
+  position:fixed;
+  right:20px;
+  top:50%;
+  transform:translateY(-50%);
+  background:#0f1f2c;
+  width:320px;
+  padding:20px;
+  border-radius:14px;
+  box-shadow:0 10px 40px rgba(0,0,0,0.7);
+  display:none;
+  max-height:80vh;
+  overflow:auto;
+}
+
+.painel h3{
+  margin:0;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.painel-desc{
+  font-size:12px;
+  opacity:0.7;
+  margin-bottom:12px;
+}
+
+.item2fa{
+  background:#08141c;
+  padding:10px;
+  border-radius:8px;
+  margin-bottom:10px;
+}
+
+.codigoMini{
+  font-size:20px;
+  font-weight:600;
+  cursor:pointer;
+  transition:0.2s;
+}
+.codigoMini:hover{
+  opacity:0.8;
+}
+
+.codigoMini.valid{
+  color:#19ff9a;
+}
+.codigoMini.expiring{
+  color:#ff4d4d;
+  font-weight:700;
+}
+
+.timer{
+  font-size:11px;
+  opacity:0.6;
+}
+
+.controles{
+  text-align:center;
+  margin-top:10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<img class="logo-img" src="https://cdn.ggmax.com.br/avatar-images/656f823e921580ad52e62b38f93b71d6.webp">
+
+<h2>MJ VENDAS</h2>
+<div class="subtitle">Gerador profissional 2FA</div>
+
+<input id="secret" placeholder="Cole a chave 2FA">
+
+<div class="code" id="code">------</div>
+
+<div class="msg" id="msg"></div>
+
+<div id="extra" style="display:none">
+  <div class="extra">Suporte disponível no chat da compra</div>
+  <div class="extra">Boa contingência 🚀</div>
+</div>
+
+<div class="toggle" onclick="togglePainel()">
+⚡ Quer mais praticidade?
+</div>
+
+<div class="avaliacao">
+<h4>As contas atenderam sua expectativa?</h4>
+<button onclick="votarSim()">👍 Sim</button>
+<button onclick="votarNao()">👎 Não</button>
+<p>👍 <span id="likes">0</span> aprovações</p>
+<p>👎 <span id="dislikes">0</span> reprovações</p>
+</div>
+
+<div class="footer">
+Ferramenta local • não compartilhamos dados
+</div>
+
+</div>
+
+<div class="painel" id="painel">
+
+<h3>
+  Painel de Códigos 2FA
+  <button style="background:#ff4d4d; font-size:14px; padding:4px 8px;" onclick="togglePainel()">Fechar</button>
+</h3>
+
+<div class="painel-desc">
+Criamos este painel para você programar vários códigos 2FA ao mesmo tempo,
+evitando precisar colar as chaves repetidamente.
+</div>
+
+<div id="lista2fa"></div>
+
+<div class="controles">
+<div>Quer adicionar mais código 2FA?</div>
+<button onclick="addCampo()">+</button>
+<button onclick="remCampo()">-</button>
+</div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsSHA/2.4.2/sha.js"></script>
+
+<script>
+let totalCampos=5
+const maxCampos=50
+
+function base32tohex(base32){
+  const base32chars="ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  let bits="", hex="";
+  base32=base32.replace(/ /g,"").toUpperCase();
+  for(let i=0;i<base32.length;i++){
+    let val=base32chars.indexOf(base32.charAt(i));
+    bits+=val.toString(2).padStart(5,"0");
+  }
+  for(let i=0;i+4<=bits.length;i+=4){
+    let chunk=bits.substr(i,4);
+    hex+=parseInt(chunk,2).toString(16);
+  }
+  return hex;
+}
+
+function gerarOTP(secret){
+  let key=base32tohex(secret)
+  let epoch=Math.round(Date.now()/1000)
+  let time=Math.floor(epoch/30).toString(16).padStart(16,"0")
+  let shaObj=new jsSHA("SHA-1","HEX")
+  shaObj.setHMACKey(key,"HEX")
+  shaObj.update(time)
+  let hmac=shaObj.getHMAC("HEX")
+  let offset=parseInt(hmac.substring(hmac.length-1),16)
+  let otp=(parseInt(hmac.substr(offset*2,8),16)&0x7fffffff)+""
+  return otp.substr(otp.length-6)
+}
+
+// Clique único para copiar código principal
+function copiarCodigoPrincipal(){
+  let codeEl = document.getElementById("code");
+  let otp = codeEl.innerText;
+  if(otp && otp !== "------"){
+    navigator.clipboard.writeText(otp);
+    document.getElementById("msg").innerText = "Código copiado automaticamente";
+  }
+}
+
+document.getElementById("code").addEventListener("click", copiarCodigoPrincipal);
+
+function gerar(){
+  let secret=document.getElementById("secret").value
+  if(secret.length<16)return
+  let otp=gerarOTP(secret)
+  document.getElementById("code").innerText=otp
+  copiarCodigoPrincipal();
+  document.getElementById("extra").style.display="block"
+}
+
+document.getElementById("secret").addEventListener("input",gerar)
+setInterval(gerar,30000)
+
+function togglePainel(){
+  let p=document.getElementById("painel")
+  p.style.display=p.style.display==="block"?"none":"block"
+}
+
+// Criar códigos 2FA com número, clique único e cores
+function criarCampo(){
+  let id = document.querySelectorAll(".item2fa").length + 1;
+  let div = document.createElement("div");
+  div.className = "item2fa";
+  div.innerHTML = `
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div style="font-size:22px; font-weight:700; color:#ff4d4d;">${id}</div>
+      <div style="flex:1">
+        <input id="secret${id}" placeholder="Chave 2FA ${id}">
+        <div class="codigoMini valid" id="code${id}">------</div>
+        <div class="timer" id="timer${id}"></div>
+      </div>
+    </div>
+  `;
+  document.getElementById("lista2fa").appendChild(div);
+
+  // Clique único para copiar
+  let codeEl = div.querySelector(".codigoMini");
+  codeEl.addEventListener("click", function(){
+    let otp = codeEl.innerText;
+    if(otp && otp !== "------"){
+      navigator.clipboard.writeText(otp);
+      document.getElementById("msg").innerText = `Código ${id} copiado!`;
+    }
+  });
+}
+
+function addCampo(){
+  if(totalCampos>=maxCampos)return
+  totalCampos++
+  criarCampo()
+}
+
+function remCampo(){
+  let lista=document.getElementById("lista2fa")
+  if(lista.children.length<=1)return
+  lista.removeChild(lista.lastChild)
+  totalCampos--
+}
+
+for(let i=0;i<totalCampos;i++) criarCampo()
+
+// Atualiza códigos 2FA e cores de expiração
+function atualizarMultiplos(){
+  for(let i=1;i<=totalCampos;i++){
+    let el=document.getElementById("secret"+i)
+    if(!el) continue
+    let secret=el.value
+    if(secret.length<16) continue
+    let otp=gerarOTP(secret)
+    let codeEl=document.getElementById("code"+i)
+    codeEl.innerText=otp
+    let segundos=30-(Math.floor(Date.now()/1000)%30)
+    document.getElementById("timer"+i).innerText="expira em "+segundos+"s"
+
+    if(segundos<=5){
+      codeEl.classList.add("expiring");
+      codeEl.classList.remove("valid");
+    }else{
+      codeEl.classList.add("valid");
+      codeEl.classList.remove("expiring");
+    }
+  }
+}
+
+setInterval(atualizarMultiplos,1000)
+</script>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+<script>
+var firebaseConfig={
+apiKey:"AIzaSyALqmeGhhHIX62ptIK7sviv7OkoawXAE1g",
+authDomain:"desbloqueio-cartao-recomecar.firebaseapp.com",
+databaseURL:"https://desbloqueio-cartao-recomecar-default-rtdb.firebaseio.com",
+projectId:"desbloqueio-cartao-recomecar"
+};
+firebase.initializeApp(firebaseConfig)
+var db=firebase.database()
+var likesRef=db.ref("avaliacoes/sim")
+var dislikesRef=db.ref("avaliacoes/nao")
+likesRef.on("value",snap=>{
+  document.getElementById("likes").innerText=snap.val()||0
+})
+dislikesRef.on("value",snap=>{
+  document.getElementById("dislikes").innerText=snap.val()||0
+})
+function votarSim(){
+  if(localStorage.getItem("votou")) return alert("Você já votou")
+  likesRef.transaction(n=>(n||0)+1)
+  localStorage.setItem("votou","sim")
+}
+function votarNao(){
+  if(localStorage.getItem("votou")) return alert("Você já votou")
+  dislikesRef.transaction(n=>(n||0)+1)
+  localStorage.setItem("votou","nao")
+}
+</script>
+
+</body>
+</html>
